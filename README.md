@@ -11,6 +11,8 @@ A near identical macOS 26 Tahoe-inspired SDDM greeter theme (Qt 6), which featur
 > `https://github.com/zayronxio/Sonoma-SDDMT`
 > `https://github.com/0-ss/MacShell`
 
+> [!NOTE]
+> This project is very early in development. Expect changes, bugs, etc. 
 
 ---
 

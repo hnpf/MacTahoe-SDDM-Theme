@@ -1,0 +1,8 @@
+[SddmGreeterTheme]
+Name=MacTahoe SDDM theme
+Description=MacTahoe SDDM theme. Features Liquid glass refractions ported from Quickshell MacLock (CRED. github.com/0-ss/ && github.com/0-ss/MacShell)
+Author=hnpf
+Type=sddm-theme
+Version=1.0
+MainScript=Main.qml
+ConfigFile=theme.conf

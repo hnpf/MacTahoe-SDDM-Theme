@@ -23,6 +23,11 @@ fi
 if [[ "$1" == "--uninstall" || "$1" == "-u" ]]; then
     echo -e "[${RED}==>${NC}] Removing ${THEME_NAME} from ${INSTALL_DIR}..."
     sudo rm -rf "${INSTALL_DIR}"
+    sudo rm -f /etc/sddm.conf.d/10-theme.conf
+    # clear the theme out of /etc/sddm.conf if it set it
+    if [ -f /etc/sddm.conf ] && grep -q "Current=${THEME_NAME}" /etc/sddm.conf; then
+        sudo sed -i "s/^Current=${THEME_NAME}/Current=/" /etc/sddm.conf
+    fi
     echo -e "[${GREEN}==>${NC}] Uninstalled successfully!"
     exit 0
 fi
@@ -38,7 +43,8 @@ if [ -n "$QSB" ]; then
     "$QSB" --qt6 -o "${SCRIPT_DIR}/contourglow.frag.qsb" "${SCRIPT_DIR}/contourglow.frag"
     echo -e "[${GREEN}x${NC}] Shaders compiled."
 else
-    echo -e "[${RED}!${NC}] Warning: qsb was not found. fallback ot precompiled .qsb shaders if present!"
+    echo -e "[${RED}!${NC}] Warning: qsb was not found. fallback to precompiled .qsb shaders if present!"
+    echo -e "    to compile from source on arch: sudo pacman -S qt6-shadertools"
 fi
 
 # install
@@ -53,6 +59,11 @@ for file in liquidglass.frag.qsb contourglow.frag.qsb background.jpg preview.png
     fi
 done
 
+# make sure the sddm user can read everything
+sudo chown -R root:root "${INSTALL_DIR}"
+sudo chmod -R 755 "${INSTALL_DIR}"
+find "${INSTALL_DIR}" -type f -exec sudo chmod 644 {} +
+
 # make sddm use MacTahoe-SDDM-Theme
 echo -e "[${BLUE}==>${NC}] Applying SDDM configuration..."
 sudo mkdir -p /etc/sddm.conf.d/
@@ -60,6 +71,11 @@ cat << CONF | sudo tee /etc/sddm.conf.d/10-theme.conf > /dev/null
 [Theme]
 Current=${THEME_NAME}
 CONF
+
+# if /etc/sddm.conf has its own Current= it would override the .conf.d one, so update it
+if [ -f /etc/sddm.conf ] && grep -q "Current=" /etc/sddm.conf; then
+    sudo sed -i "s/^Current=.*/Current=${THEME_NAME}/" /etc/sddm.conf
+fi
 
 echo -e "[${GREEN}==>${NC}] ${THEME_NAME} has installed successfully!"
 echo -e "test theme by running: ${BLUE}./install.sh --test${NC}"

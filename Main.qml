@@ -42,10 +42,22 @@ Item {
         Image {
             id: wall
             anchors.fill: parent
-            source: config.background || "background.jpg"
+            source: {
+                var raw = (typeof config !== "undefined" && config.background) ? String(config.background) : "background.jpg";
+                var bg = raw.split("#")[0].split(";")[0].trim();
+                if (!bg) bg = "background.jpg";
+                // if absolute path: load with file://
+                if (bg.indexOf("/") === 0) return "file://" + bg;
+                return Qt.resolvedUrl(bg);
+            }
             fillMode: Image.PreserveAspectCrop
             smooth: true
             asynchronous: false
+            onStatusChanged: {
+                if (status === Image.Error) {
+                    console.log("[MacTahoe] Failed to load wallpaper from:", source);
+                }
+            }
         }
 
         // fall back backdrop gradient if there is no background.jpg
@@ -295,19 +307,18 @@ Item {
         anchors.bottomMargin: 84 * root.u
         spacing: 12 * root.u
 
-        // user avatar (get user avatar from ~/.face.icon)
+        // avatar
         Item {
+            id: avatarContainer
             anchors.horizontalCenter: parent.horizontalCenter
             width: 82 * root.u
             height: width
-
             Rectangle {
                 anchors.fill: parent
                 radius: width / 2
                 color: Qt.rgba(1, 1, 1, 0.18)
-                border.width: 1.5
-                border.color: Qt.rgba(1, 1, 1, 0.30)
 
+                // placeholder
                 Text {
                     anchors.centerIn: parent
                     visible: avatarImg.status !== Image.Ready
@@ -318,36 +329,71 @@ Item {
                 }
             }
 
+            // mask (layer.enabled: true is needed for qt to render it to gpu memory!)
             Item {
                 id: avMask
                 anchors.fill: parent
                 visible: false
-                Rectangle { anchors.fill: parent; radius: width / 2; color: "black" }
+                layer.enabled: true
+                layer.smooth: true
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: width / 2
+                    color: "black"
+                }
             }
 
+            // user avatar image (~/.face.icon -> ~/.face -> AccountsService)
             Image {
                 id: avatarImg
                 anchors.fill: parent
                 fillMode: Image.PreserveAspectCrop
-                asynchronous: true
+                asynchronous: false
+                cache: false
                 smooth: true
                 mipmap: true
+                visible: status === Image.Ready
+
                 source: {
                     if (!root.currentUsername) return "";
-                    return "/var/lib/AccountsService/icons/" + root.currentUsername;
+                    return "file:///home/" + root.currentUsername + "/.face.icon";
                 }
+
                 onStatusChanged: {
                     if (status === Image.Error) {
-                        source = "file:///home/" + root.currentUsername + "/.face.icon";
+                        if (source.toString().indexOf(".face.icon") >= 0) {
+                            source = "file:///home/" + root.currentUsername + "/.face";
+                        } else if (source.toString().indexOf(".face") >= 0 && source.toString().indexOf(".face.icon") < 0) {
+                            source = "file:///var/lib/AccountsService/icons/" + root.currentUsername;
+                        }
                     }
                 }
-                layer.enabled: true
+
+                Connections {
+                    target: root
+                    function onCurrentUsernameChanged() {
+                        avatarImg.source = "file:///home/" + root.currentUsername + "/.face.icon";
+                    }
+                }
+
+                layer.enabled: status === Image.Ready
+                layer.smooth: true
                 layer.effect: MultiEffect {
                     maskEnabled: true
                     maskSource: avMask
                     maskThresholdMin: 0.5
                     maskSpreadAtMin: 1.0
                 }
+            }
+
+            // outer glass
+            Rectangle {
+                anchors.fill: parent
+                radius: width / 2
+                color: "transparent"
+                border.width: 1.5
+                border.color: Qt.rgba(1, 1, 1, 0.32)
             }
 
             MouseArea {
@@ -361,27 +407,34 @@ Item {
             }
         }
 
-        // username
-        Row {
+        // username display
+        Item {
             anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 6 * root.u
+            width: nameRow.implicitWidth
+            height: nameRow.implicitHeight
 
-            Text {
-                text: root.currentRealName
-                color: "white"
-                font.pixelSize: 16 * root.u
-                font.weight: Font.DemiBold
-                layer.enabled: true
-                layer.effect: MultiEffect { shadowEnabled: true; shadowBlur: 0.4; shadowOpacity: 0.3 }
-            }
+            Row {
+                id: nameRow
+                anchors.centerIn: parent
+                spacing: 6 * root.u
 
-            Glyph {
-                visible: typeof userModel !== "undefined" && userModel.count > 1
-                anchors.verticalCenter: parent.verticalCenter
-                width: 10 * root.u; height: 10 * root.u
-                kind: "chevR"
-                rotation: 90
-                color: Qt.rgba(1, 1, 1, 0.7)
+                Text {
+                    text: root.currentRealName
+                    color: "white"
+                    font.pixelSize: 16 * root.u
+                    font.weight: Font.DemiBold
+                    layer.enabled: true
+                    layer.effect: MultiEffect { shadowEnabled: true; shadowBlur: 0.4; shadowOpacity: 0.3 }
+                }
+
+                Glyph {
+                    visible: typeof userModel !== "undefined" && userModel.count > 1
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 10 * root.u; height: 10 * root.u
+                    kind: "chevR"
+                    rotation: 90
+                    color: Qt.rgba(1, 1, 1, 0.7)
+                }
             }
 
             MouseArea {

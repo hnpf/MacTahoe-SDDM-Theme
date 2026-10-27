@@ -21,6 +21,23 @@ Item {
         return (rn && rn.length > 0) ? rn : currentUsername;
     }
     property int selectedSessionIndex: (typeof sessionModel !== "undefined" && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
+    property string currentSessionName: {
+        if (typeof sessionModel === "undefined" || sessionModel.count === 0) return "Session";
+        var validIdx = Math.max(0, Math.min(selectedSessionIndex, sessionModel.count - 1));
+        var name = sessionModel.data(sessionModel.index(validIdx, 0), Qt.UserRole + 4);
+        return name || "Session";
+    }
+    readonly property real sessionMenuWidth: {
+        var maxW = 0;
+        if (typeof sessionModel !== "undefined") {
+            for (var i = 0; i < sessionModel.count; ++i) {
+                var s = sessionModel.data(sessionModel.index(i, 0), Qt.UserRole + 4) || "";
+                var itemW = (s.length * 8.2 + 56) * root.u;
+                if (itemW > maxW) maxW = itemW;
+            }
+        }
+        return Math.max(sessionPill.width, Math.max(200 * root.u, Math.min(320 * root.u, maxW)));
+    }
     property string passwordText: passwordInput.text
     property bool isBusy: false
     property string errorMessage: ""
@@ -116,6 +133,8 @@ Item {
 
     // -- status bar --
     Row {
+        id: statusBar
+        z: 100
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.margins: 18 * root.u
@@ -127,6 +146,7 @@ Item {
             width: sessionRow.implicitWidth + 24 * root.u
             height: 32 * root.u
             visible: typeof sessionModel !== "undefined" && sessionModel.count > 1
+            Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutQuint } }
 
             Glass {
                 anchors.fill: parent
@@ -136,6 +156,14 @@ Item {
                 thickness: 18
                 tint: 0.22
                 dark: false
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                radius: height / 2
+                color: "white"
+                opacity: pillMa.pressed ? 0.22 : (pillMa.containsMouse || sessionMenu.visible ? 0.12 : 0)
+                Behavior on opacity { NumberAnimation { duration: 140 } }
             }
 
             Row {
@@ -152,18 +180,34 @@ Item {
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: (typeof sessionModel !== "undefined" && sessionModel.count > 0)
-                          ? sessionModel.data(sessionModel.index(root.selectedSessionIndex, 0), Qt.UserRole + 1) : "Session"
+                    text: root.currentSessionName
                     color: "white"
                     font.pixelSize: 12 * root.u
                     font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                    maximumLineCount: 1
+                    width: Math.min(implicitWidth, 200 * root.u)
+                }
+
+                Glyph {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 8 * root.u; height: 8 * root.u
+                    kind: "chevR"
+                    rotation: sessionMenu.visible ? -90 : 90
+                    color: Qt.rgba(1, 1, 1, 0.7)
+                    Behavior on rotation { NumberAnimation { duration: 150 } }
                 }
             }
 
             MouseArea {
+                id: pillMa
                 anchors.fill: parent
+                hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: sessionMenu.visible = !sessionMenu.visible
+                onClicked: {
+                    userSwitcher.visible = false;
+                    sessionMenu.visible = !sessionMenu.visible;
+                }
             }
 
             // session picker dropdown
@@ -172,8 +216,8 @@ Item {
                 visible: false
                 y: sessionPill.height + 8 * root.u
                 anchors.right: parent.right
-                width: 180 * root.u
-                height: sessionList.contentHeight + 16 * root.u
+                width: root.sessionMenuWidth
+                height: Math.min(320 * root.u, Math.max(sessionList.contentHeight, (typeof sessionModel !== "undefined" ? sessionModel.count : 0) * 34 * root.u) + 16 * root.u)
 
                 Glass {
                     anchors.fill: parent
@@ -185,34 +229,65 @@ Item {
                     dark: false
                 }
 
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 14 * root.u
+                    color: "transparent"
+                    border.width: 1
+                    border.color: Qt.rgba(1, 1, 1, 0.18)
+                }
+
                 ListView {
                     id: sessionList
                     anchors.fill: parent
                     anchors.margins: 8 * root.u
+                    spacing: 4 * root.u
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    interactive: contentHeight > height
                     model: sessionModel
                     delegate: Rectangle {
+                        id: sessionItem
                         width: sessionList.width
-                        height: 28 * root.u
-                        radius: 6 * root.u
-                        color: sMa.containsMouse ? Qt.rgba(1, 1, 1, 0.2) : (index === root.selectedSessionIndex ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
+                        height: 30 * root.u
+                        radius: 7 * root.u
+                        color: sMa.containsMouse ? Qt.rgba(1, 1, 1, 0.22) : (index === root.selectedSessionIndex ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
 
-                        Text {
-                            anchors.left: parent.left
-                            anchors.leftMargin: 8 * root.u
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: model.name || ""
-                            color: "white"
-                            font.pixelSize: 12 * root.u
-                            font.weight: index === root.selectedSessionIndex ? Font.Bold : Font.Normal
+                        Row {
+                            anchors.fill: parent
+                            anchors.leftMargin: 10 * root.u
+                            anchors.rightMargin: 10 * root.u
+                            spacing: 8 * root.u
+
+                            Glyph {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 12 * root.u; height: 12 * root.u
+                                kind: "check"
+                                color: "white"
+                                opacity: index === root.selectedSessionIndex ? 1 : 0
+                                Behavior on opacity { NumberAnimation { duration: 120 } }
+                            }
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: parent.width - 20 * root.u
+                                text: (model && model.name) ? model.name : ((typeof sessionModel !== "undefined") ? sessionModel.data(sessionModel.index(index, 0), Qt.UserRole + 4) : "") || ""
+                                color: "white"
+                                font.pixelSize: 12 * root.u
+                                font.weight: index === root.selectedSessionIndex ? Font.DemiBold : Font.Normal
+                                elide: Text.ElideRight
+                            }
                         }
 
                         MouseArea {
                             id: sMa
                             anchors.fill: parent
                             hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                root.selectedSessionIndex = index
-                                sessionMenu.visible = false
+                                root.selectedSessionIndex = index;
+                                sessionMenu.visible = false;
+                                passwordInput.forceActiveFocus();
                             }
                         }
                     }
@@ -401,6 +476,7 @@ Item {
                 cursorShape: typeof userModel !== "undefined" && userModel.count > 1 ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onClicked: {
                     if (typeof userModel !== "undefined" && userModel.count > 1) {
+                        sessionMenu.visible = false;
                         userSwitcher.visible = !userSwitcher.visible;
                     }
                 }
@@ -442,6 +518,7 @@ Item {
                 cursorShape: typeof userModel !== "undefined" && userModel.count > 1 ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onClicked: {
                     if (typeof userModel !== "undefined" && userModel.count > 1) {
+                        sessionMenu.visible = false;
                         userSwitcher.visible = !userSwitcher.visible;
                     }
                 }
@@ -672,6 +749,7 @@ Item {
     // user switch popup
     Item {
         id: userSwitcher
+        z: 100
         visible: false
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: loginCol.top
@@ -751,6 +829,18 @@ Item {
         }
     }
 
+    // dismiss dropdowns / popups when clicking anywhere outside
+    MouseArea {
+        anchors.fill: parent
+        z: 90
+        visible: sessionMenu.visible || userSwitcher.visible
+        onClicked: {
+            sessionMenu.visible = false;
+            userSwitcher.visible = false;
+            passwordInput.forceActiveFocus();
+        }
+    }
+
     // -- ssdm authentication --
     function submitLogin() {
         if (root.isBusy || root.passwordText.length === 0) return;
@@ -792,6 +882,7 @@ Item {
             root.submitLogin();
             event.accepted = true;
         } else if (event.key === Qt.Key_Escape) {
+            sessionMenu.visible = false;
             userSwitcher.visible = false;
             passwordInput.text = "";
             event.accepted = true;

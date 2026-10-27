@@ -42,6 +42,8 @@ Canvas {
             poly([2.4, 12.4, 9, 15.8, 15.6, 12.4], false);
         } else if (kind === "chevR") {
             poly([7, 3.5, 12.5, 9, 7, 14.5], false);
+        } else if (kind === "check") {
+            poly([3.5, 9.5, 7.5, 13.5, 14.5, 5.5], false);
         } else if (kind === "lock") {
             ctx.beginPath();
             ctx.moveTo(9, 2.2); ctx.lineTo(15.6, 9.2); ctx.lineTo(12, 9.2); ctx.lineTo(12, 12.4);

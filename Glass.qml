@@ -13,18 +13,20 @@ Item {
     property real shadowAmt: 0.35
     property bool dark: false
     readonly property real pad: 10
+    readonly property bool ready: gg.src !== null && gg.frame !== null
     readonly property bool failed: fx.status === ShaderEffect.Error
 
     function framePos() {
+        if (!gg.frame) return Qt.point(0, 0);
         var px = 0, py = 0, it = gg;
         while (it && it !== frame) { px += it.x; py += it.y; it = it.parent; }
         return Qt.point(px, py);
     }
-    readonly property point fp: framePos()
+    readonly property point fp: ready ? framePos() : Qt.point(0, 0)
 
-    //fall back if compiled .qsb is missing
+    //fall back if compiled .qsb is missing or src isn't ready yet
     Rectangle {
-        visible: gg.failed || !gg.src
+        visible: gg.failed || !gg.ready
         anchors.fill: parent
         radius: gg.cornerR
         color: Qt.rgba(1, 1, 1, 0.18)
@@ -34,7 +36,7 @@ Item {
 
     ShaderEffect {
         id: fx
-        visible: gg.src !== null && gg.frame !== null
+        visible: gg.ready && !gg.failed
         x: -gg.pad; y: -gg.pad
         width: gg.width + 2 * gg.pad
         height: gg.height + 2 * gg.pad

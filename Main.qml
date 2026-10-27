@@ -43,12 +43,24 @@ Item {
     property string errorMessage: ""
     property bool enterHeld: false
     property var currentTime: new Date()
+    property bool sceneReady: false
 
     Timer {
         interval: 1000
         repeat: true
         running: true
         onTriggered: root.currentTime = new Date()
+    }
+
+    // let the scene graph settle before enabling the shader pipeline.
+    // without this the ShaderEffectSources race the GPU driver on cold boot
+    // and crash the greeter (black screen).
+    Timer {
+        id: warmupTimer
+        interval: 180
+        repeat: false
+        running: true
+        onTriggered: root.sceneReady = true
     }
 
     // -- backgrop and lg pipeline --
@@ -69,7 +81,7 @@ Item {
             }
             fillMode: Image.PreserveAspectCrop
             smooth: true
-            asynchronous: false
+            asynchronous: true
             onStatusChanged: {
                 if (status === Image.Error) {
                     console.log("[MacTahoe] Failed to load wallpaper from:", source);
@@ -105,7 +117,7 @@ Item {
         id: sceneTex
         sourceItem: scene
         visible: false
-        live: true
+        live: root.sceneReady
         width: root.width
         height: root.height
         textureSize: Qt.size(Math.max(1, Math.round(root.width / 2)), Math.max(1, Math.round(root.height / 2)))
@@ -113,7 +125,7 @@ Item {
 
     MultiEffect {
         id: sceneBlur
-        source: sceneTex
+        source: root.sceneReady ? sceneTex : null
         width: sceneTex.textureSize.width
         height: sceneTex.textureSize.height
         blurEnabled: true
@@ -126,7 +138,7 @@ Item {
     ShaderEffectSource {
         id: glassTex
         sourceItem: sceneBlur
-        live: true
+        live: root.sceneReady
         mipmap: true
         visible: false
     }
@@ -424,7 +436,7 @@ Item {
                 id: avatarImg
                 anchors.fill: parent
                 fillMode: Image.PreserveAspectCrop
-                asynchronous: false
+                asynchronous: true
                 cache: false
                 smooth: true
                 mipmap: true

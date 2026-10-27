@@ -221,90 +221,6 @@ Item {
                     sessionMenu.visible = !sessionMenu.visible;
                 }
             }
-
-            // session picker dropdown
-            Item {
-                id: sessionMenu
-                visible: false
-                y: sessionPill.height + 8 * root.u
-                anchors.right: parent.right
-                width: root.sessionMenuWidth
-                height: Math.min(320 * root.u, Math.max(sessionList.contentHeight, (typeof sessionModel !== "undefined" ? sessionModel.count : 0) * 34 * root.u) + 16 * root.u)
-
-                Glass {
-                    anchors.fill: parent
-                    src: glassTex
-                    frame: root
-                    cornerR: 14 * root.u
-                    thickness: 20
-                    tint: 0.35
-                    dark: false
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 14 * root.u
-                    color: "transparent"
-                    border.width: 1
-                    border.color: Qt.rgba(1, 1, 1, 0.18)
-                }
-
-                ListView {
-                    id: sessionList
-                    anchors.fill: parent
-                    anchors.margins: 8 * root.u
-                    spacing: 4 * root.u
-                    clip: true
-                    boundsBehavior: Flickable.StopAtBounds
-                    interactive: contentHeight > height
-                    model: sessionModel
-                    delegate: Rectangle {
-                        id: sessionItem
-                        width: sessionList.width
-                        height: 30 * root.u
-                        radius: 7 * root.u
-                        color: sMa.containsMouse ? Qt.rgba(1, 1, 1, 0.22) : (index === root.selectedSessionIndex ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
-
-                        Row {
-                            anchors.fill: parent
-                            anchors.leftMargin: 10 * root.u
-                            anchors.rightMargin: 10 * root.u
-                            spacing: 8 * root.u
-
-                            Glyph {
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: 12 * root.u; height: 12 * root.u
-                                kind: "check"
-                                color: "white"
-                                opacity: index === root.selectedSessionIndex ? 1 : 0
-                                Behavior on opacity { NumberAnimation { duration: 120 } }
-                            }
-
-                            Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: parent.width - 20 * root.u
-                                text: (model && model.name) ? model.name : ((typeof sessionModel !== "undefined") ? sessionModel.data(sessionModel.index(index, 0), Qt.UserRole + 4) : "") || ""
-                                color: "white"
-                                font.pixelSize: 12 * root.u
-                                font.weight: index === root.selectedSessionIndex ? Font.DemiBold : Font.Normal
-                                elide: Text.ElideRight
-                            }
-                        }
-
-                        MouseArea {
-                            id: sMa
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.selectedSessionIndex = index;
-                                sessionMenu.visible = false;
-                                passwordInput.forceActiveFocus();
-                            }
-                        }
-                    }
-                }
-            }
         }
 
         // pow options (suspend, reboot, poweroff)
@@ -835,6 +751,92 @@ Item {
                         passwordInput.text = ""
                         userSwitcher.visible = false
                         passwordInput.forceActiveFocus()
+                    }
+                }
+            }
+        }
+    }
+
+    // session picker dropdown
+    Item {
+        id: sessionMenu
+        objectName: "sessionMenu"
+        z: 100
+        visible: false
+        x: statusBar.x + sessionPill.x + sessionPill.width - width
+        y: statusBar.y + sessionPill.y + sessionPill.height + 8 * root.u
+        width: root.sessionMenuWidth
+        height: Math.min(320 * root.u, Math.max(50 * root.u, ((typeof sessionModel !== "undefined" && sessionModel && sessionModel.count) ? sessionModel.count : 0) * 34 * root.u + 16 * root.u))
+
+        Glass {
+            anchors.fill: parent
+            src: glassTex
+            frame: root
+            cornerR: 14 * root.u
+            thickness: 20
+            tint: 0.35
+            dark: false
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            radius: 14 * root.u
+            color: "transparent"
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.18)
+        }
+
+        ListView {
+            id: sessionList
+            anchors.fill: parent
+            anchors.margins: 8 * root.u
+            spacing: 4 * root.u
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            interactive: contentHeight > height
+            model: sessionModel
+            delegate: Rectangle {
+                id: sessionItem
+                width: sessionList.width
+                height: 30 * root.u
+                radius: 7 * root.u
+                color: sMa.containsMouse ? Qt.rgba(1, 1, 1, 0.22) : (index === root.selectedSessionIndex ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
+
+                Row {
+                    anchors.fill: parent
+                    anchors.leftMargin: 10 * root.u
+                    anchors.rightMargin: 10 * root.u
+                    spacing: 8 * root.u
+
+                    Glyph {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 12 * root.u; height: 12 * root.u
+                        kind: "check"
+                        color: "white"
+                        opacity: index === root.selectedSessionIndex ? 1 : 0
+                        Behavior on opacity { NumberAnimation { duration: 120 } }
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width - 20 * root.u
+                        text: (model && model.name) ? model.name : ((typeof sessionModel !== "undefined") ? sessionModel.data(sessionModel.index(index, 0), Qt.UserRole + 4) : "") || ""
+                        color: "white"
+                        font.pixelSize: 12 * root.u
+                        font.weight: index === root.selectedSessionIndex ? Font.DemiBold : Font.Normal
+                        elide: Text.ElideRight
+                    }
+                }
+
+                MouseArea {
+                    id: sMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        root.selectedSessionIndex = index;
+                        sessionMenu.visible = false;
+                        passwordInput.forceActiveFocus();
                     }
                 }
             }

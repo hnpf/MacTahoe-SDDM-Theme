@@ -20,7 +20,7 @@ A near identical macOS 26 Tahoe-inspired SDDM greeter theme (Qt 6), which featur
 
 - **Liquid Glass**: features shaders which calculate surface normal distortion and chromatic dispersion from live background.
 - **Dynamic Backdrop Vignette**: apple-styled v depth gradients so typography & glass rims show well on practically any wallpapers.
-- **Clock (SOON TO BE CUSTOMIZABLE)**: live mac-style oversized clock font with some subtle drop shadowing.
+- **Clock**: live mac-style clock with Shell27-compatible presets, font, weight, material, tint, date format, and 12/24-hour settings.
 - **Password Pill**:
   - [x] enter squishing & shake animations on incorrect credentials
   - [x] features macOS dot physics with resizable scroll container for long passwords
@@ -80,11 +80,14 @@ preview directly inside your desktop session w/o logging out
 
 edit `/usr/share/sddm/themes/sddm-mac-tahoe/theme.conf`.
 
-there is only one option for customization currently, that being `background`.
+The theme reads `~/.config/macbar/settings.json` for the selected user when that file is readable by SDDM. It refreshes the clock settings while the greeter is open, and does not require Shell27 to be installed. If the file is in another location, set `macbarSettingsFile` to an absolute path; `%USER%` expands to the selected login name and `%HOME%` to `/home/<user>`.
+
+SDDM must be able to traverse the user's home directory and read the JSON file. The installer enables Qt's `QML_XHR_ALLOW_FILE_READ=1` greeter environment flag for this; manual installations must add the same variable to SDDM's `GreeterEnvironment`. For a private home directory, point `macbarSettingsFile` at a readable shared copy. When no shared settings file is available, the theme uses its defaults. Standalone values can also be added to `theme.conf` using the same keys: `lockClockStyle`, `lockClockFont`, `lockClockWeight`, `lockClockMaterial`, `lockClockIntensity`, `lockClockTint`, `lockClockDate`, and `use24h`.
 
 ```bash
 [General]
 background=background.jpg # change to whatever, or replace.
+macbarSettingsFile=/home/%USER%/.config/macbar/settings.json
 ```
 
 change background.jpg to whatever you want, or replace the preexisting/default wallpaper.

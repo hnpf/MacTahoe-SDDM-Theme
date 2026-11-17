@@ -44,6 +44,103 @@ Item {
     property bool enterHeld: false
     property var currentTime: new Date()
     property bool sceneReady: false
+    property bool use24h: true
+    property string lockClockStyle: "glass"
+    property string lockClockFont: "rounded"
+    property int lockClockWeight: 680
+    property string lockClockMaterial: "glass"
+    property real lockClockIntensity: 0.6
+    property color lockClockTint: "#FFFFFF"
+    property string lockClockDate: "long"
+    property int clockSettingsRequest: 0
+    readonly property var lockClockPresets: ({
+        glass:   { font: "rounded", weight: 680, material: "glass", intensity: 0.6, date: "long" },
+        classic: { font: "rounded", weight: 600, material: "solid", intensity: 0.8, date: "long" },
+        serif:   { font: "serif", weight: 560, material: "solid", intensity: 0.85, date: "short" },
+        liquid:  { font: "rounded", weight: 560, material: "glass", intensity: 0.12, date: "short" },
+        thin:    { font: "rounded", weight: 200, material: "solid", intensity: 0.6, date: "short" }
+    })
+    readonly property string roundFontFamily: roundFontRegular.status === FontLoader.Ready ? roundFontRegular.name : "sans-serif"
+    readonly property string clockFontFamily: lockClockFont === "serif"
+        ? (Qt.fontFamilies().indexOf("Noto Serif Display") >= 0 ? "Noto Serif Display" : roundFontFamily)
+        : (lockClockFont === "inter" ? roundFontFamily : (Qt.fontFamilies().indexOf("Nunito") >= 0 ? "Nunito" : roundFontFamily))
+    readonly property string dateFontFamily: lockClockFont === "serif" && Qt.fontFamilies().indexOf("Noto Serif Display") >= 0
+        ? "Noto Serif Display" : roundFontFamily
+    readonly property real clockOpacity: lockClockMaterial === "solid"
+        ? Math.max(0.65, lockClockIntensity) : Math.max(0.72, 0.96 - 0.24 * lockClockIntensity)
+
+    FontLoader { id: roundFontRegular; source: Qt.resolvedUrl("fonts/OpenRunde-Regular.otf") }
+    FontLoader { id: roundFontSemibold; source: Qt.resolvedUrl("fonts/OpenRunde-Semibold.otf") }
+
+    function reloadClockSettings() {
+        var username = root.currentUsername;
+        var home = username ? "/home/" + username : "";
+        var path = (typeof config !== "undefined" && config.macbarSettingsFile)
+            ? String(config.macbarSettingsFile).trim() : "";
+        if (!path) path = home + "/.config/macbar/settings.json";
+        path = path.replace(/%USER%/g, username).replace(/%HOME%/g, home);
+        if (path.indexOf("~/") === 0) path = home + path.substring(1);
+        if (path.indexOf("/") !== 0) return;
+
+        var requestId = ++root.clockSettingsRequest;
+        var request = new XMLHttpRequest();
+        request.onreadystatechange = function() {
+            if (request.readyState !== 4 || requestId !== root.clockSettingsRequest) return;
+            var data = {};
+            try {
+                if (request.status === 0 || request.status === 200)
+                    data = JSON.parse(request.responseText || "{}");
+            } catch (error) { }
+            root.applyClockSettings(data);
+        };
+        request.open("GET", "file://" + encodeURI(path).replace(/#/g, "%23").replace(/\?/g, "%3F"), true);
+        request.send();
+    }
+
+    function applyClockSettings(fileSettings) {
+        var theme = typeof config !== "undefined" ? config : {};
+        var settings = fileSettings || {};
+        function pick(key) {
+            return settings[key] !== undefined ? settings[key] : theme[key];
+        }
+        var style = pick("lockClockStyle");
+        style = typeof style === "string" && (lockClockPresets[style] || style === "custom") ? style : "glass";
+        var preset = lockClockPresets[style] || lockClockPresets.glass;
+        var font = pick("lockClockFont");
+        font = ["rounded", "serif", "inter"].indexOf(font) >= 0 ? font : preset.font;
+        var weight = Number(pick("lockClockWeight"));
+        if (isNaN(weight) || weight < 100 || weight > 1000) weight = preset.weight;
+        var material = pick("lockClockMaterial");
+        var legacyIntensity = material === "liquid" ? 0.12 : (material === "frosted" ? 0.6 : preset.intensity);
+        if (material === "liquid" || material === "frosted") material = "glass";
+        if (material !== "solid" && material !== "glass") material = preset.material;
+        var intensity = Number(pick("lockClockIntensity"));
+        if (isNaN(intensity)) intensity = legacyIntensity;
+        intensity = Math.max(0, Math.min(1, intensity));
+        var tint = pick("lockClockTint");
+        if (typeof tint !== "string" || !/^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(tint)) tint = "#FFFFFF";
+        var date = pick("lockClockDate");
+        if (date !== "short" && date !== "long") date = preset.date;
+        var clock24 = pick("use24h");
+
+        root.lockClockStyle = style;
+        root.lockClockFont = font;
+        root.lockClockWeight = weight;
+        root.lockClockMaterial = material;
+        root.lockClockIntensity = intensity;
+        root.lockClockTint = tint;
+        root.lockClockDate = date;
+        root.use24h = clock24 === undefined ? true : (clock24 === true || String(clock24).toLowerCase() === "true");
+    }
+
+    onCurrentUsernameChanged: reloadClockSettings()
+
+    Timer {
+        interval: 5000
+        repeat: true
+        running: true
+        onTriggered: root.reloadClockSettings()
+    }
 
     Timer {
         interval: 1000
@@ -278,27 +375,99 @@ Item {
     Column {
         id: clockCol
         anchors.horizontalCenter: parent.horizontalCenter
-        y: parent.height * 0.08
-        spacing: 2 * root.u
+        y: parent.height * 0.075
+        spacing: -14 * root.u
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: Qt.formatDateTime(root.currentTime, "dddd, MMMM d")
-            color: Qt.rgba(1, 1, 1, 0.92)
-            font.pixelSize: 24 * root.u
+            text: Qt.formatDateTime(root.currentTime, root.lockClockDate === "short" ? "ddd MMM d" : "dddd, MMMM d")
+            color: "white"
+            opacity: 0.92
+            font.family: root.dateFontFamily
+            font.pixelSize: (root.lockClockDate === "short" ? 23 : 25) * root.u
             font.weight: Font.DemiBold
             layer.enabled: true
             layer.effect: MultiEffect { shadowEnabled: true; shadowBlur: 0.6; shadowOpacity: 0.35 }
         }
 
-        Text {
+        Item {
+            id: clockTime
             anchors.horizontalCenter: parent.horizontalCenter
-            text: Qt.formatDateTime(root.currentTime, "h:mm")
-            color: "white"
-            font.pixelSize: 130 * root.u
-            font.weight: Font.Bold
-            layer.enabled: true
-            layer.effect: MultiEffect { shadowEnabled: true; shadowBlur: 0.7; shadowOpacity: 0.25; shadowVerticalOffset: 3 }
+            width: clockMaskText.implicitWidth
+            height: clockMaskText.implicitHeight
+
+            Text {
+                id: clockMaskText
+                text: root.use24h ? Qt.formatDateTime(root.currentTime, "H:mm")
+                    : ((root.currentTime.getHours() % 12) || 12) + Qt.formatDateTime(root.currentTime, ":mm")
+                color: "white"
+                font.family: root.clockFontFamily
+                font.pixelSize: (root.lockClockFont === "serif" ? 168 : (root.lockClockFont === "rounded" ? 176 : 172)) * root.u
+                font.weight: Math.min(900, root.lockClockWeight)
+                font.letterSpacing: root.lockClockWeight < 330 ? 0 : -1.5 * root.u
+                renderType: Text.QtRendering
+                visible: false
+            }
+
+            ShaderEffectSource {
+                id: clockMask
+                sourceItem: clockMaskText
+                hideSource: true
+                visible: false
+                smooth: true
+            }
+
+            MultiEffect {
+                id: clockHeightEffect
+                width: clockTime.width
+                height: clockTime.height
+                source: clockMask
+                blurEnabled: true
+                blurMax: 16
+                blur: Math.max(0.12, Math.min(0.6, clockMaskText.font.pixelSize * (root.lockClockWeight < 330 ? 0.02 : 0.04) / 16))
+                autoPaddingEnabled: false
+                visible: false
+            }
+
+            ShaderEffectSource {
+                id: clockHeight
+                sourceItem: clockHeightEffect
+                visible: false
+                smooth: true
+            }
+
+            ShaderEffect {
+                id: clockGlass
+                anchors.fill: parent
+                fragmentShader: Qt.resolvedUrl("clockglass.frag.qsb")
+                property variant src: glassTex
+                property variant mask: clockMask
+                property variant hmap: clockHeight
+                property vector2d itemSize: Qt.vector2d(width, height)
+                property vector2d srcSize: Qt.vector2d(root.width, root.height)
+                readonly property point framePos: clockGlass.mapToItem(root, 0, 0)
+                property vector2d srcOffset: Qt.vector2d(framePos.x, framePos.y)
+                property real mode: root.lockClockMaterial === "glass" ? 1 : 0
+                property real intensity: root.lockClockMaterial === "glass" ? root.lockClockIntensity : 0.55 + 0.4 * root.lockClockIntensity
+                property real refract: (6 + 4 * (1 - root.lockClockIntensity)) * root.u
+                property real bevel: 4.5
+                property color tint: root.lockClockTint
+                property vector2d lightDir: Qt.vector2d(-0.6, -0.8)
+                visible: status !== ShaderEffect.Error
+            }
+
+            Text {
+                anchors.fill: parent
+                text: clockMaskText.text
+                color: root.lockClockTint
+                opacity: root.clockOpacity
+                font: clockMaskText.font
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                visible: clockGlass.status === ShaderEffect.Error
+                layer.enabled: visible
+                layer.effect: MultiEffect { shadowEnabled: true; shadowBlur: 0.7; shadowOpacity: 0.25; shadowVerticalOffset: 3 }
+            }
         }
     }
 
@@ -907,5 +1076,8 @@ Item {
         }
     }
 
-    Component.onCompleted: passwordInput.forceActiveFocus()
+    Component.onCompleted: {
+        root.reloadClockSettings();
+        passwordInput.forceActiveFocus();
+    }
 }

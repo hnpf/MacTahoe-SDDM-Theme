@@ -179,10 +179,11 @@ if [[ -n "$QSB" ]]; then
     info "Compiling shaders..."
     "$QSB" --qt6 -o "${SCRIPT_DIR}/liquidglass.frag.qsb" "${SCRIPT_DIR}/liquidglass.frag"
     "$QSB" --qt6 -o "${SCRIPT_DIR}/contourglow.frag.qsb" "${SCRIPT_DIR}/contourglow.frag"
+    "$QSB" --qt6 -o "${SCRIPT_DIR}/clockglass.frag.qsb" "${SCRIPT_DIR}/clockglass.frag"
     ok "Shaders compiled"
 else
     warn "qsb not found — using precompiled .qsb shaders if present."
-    if [[ ! -f "${SCRIPT_DIR}/liquidglass.frag.qsb" || ! -f "${SCRIPT_DIR}/contourglow.frag.qsb" ]]; then
+    if [[ ! -f "${SCRIPT_DIR}/liquidglass.frag.qsb" || ! -f "${SCRIPT_DIR}/contourglow.frag.qsb" || ! -f "${SCRIPT_DIR}/clockglass.frag.qsb" ]]; then
         err "Precompiled shaders not found either!"
         if confirm "Install qt6-shadertools to compile them?"; then
             pkg_install "$(pkg_name qsb)"
@@ -191,6 +192,7 @@ else
             if [[ -n "$QSB" ]]; then
                 "$QSB" --qt6 -o "${SCRIPT_DIR}/liquidglass.frag.qsb" "${SCRIPT_DIR}/liquidglass.frag"
                 "$QSB" --qt6 -o "${SCRIPT_DIR}/contourglow.frag.qsb" "${SCRIPT_DIR}/contourglow.frag"
+                "$QSB" --qt6 -o "${SCRIPT_DIR}/clockglass.frag.qsb" "${SCRIPT_DIR}/clockglass.frag"
                 ok "Shaders compiled"
             else
                 err "qsb still not found after install. The theme will show fallback rectangles."
@@ -206,6 +208,7 @@ fi
 # 3. copy theme files
 info "Installing theme to ${INSTALL_DIR}..."
 sudo mkdir -p "${INSTALL_DIR}"
+sudo mkdir -p "${INSTALL_DIR}/fonts"
 
 THEME_FILES=(Main.qml Glass.qml ContourGlow.qml Glyph.qml metadata.desktop theme.conf)
 for f in "${THEME_FILES[@]}"; do
@@ -218,9 +221,10 @@ for f in "${THEME_FILES[@]}"; do
 done
 
 # copy optional assets
-for f in liquidglass.frag.qsb contourglow.frag.qsb background.jpg preview.png; do
+for f in liquidglass.frag.qsb contourglow.frag.qsb clockglass.frag.qsb background.jpg preview.png; do
     [[ -f "${SCRIPT_DIR}/${f}" ]] && sudo cp "${SCRIPT_DIR}/${f}" "${INSTALL_DIR}/"
 done
+[[ -d "${SCRIPT_DIR}/fonts" ]] && sudo cp -r "${SCRIPT_DIR}/fonts/." "${INSTALL_DIR}/fonts/"
 
 # permissions
 sudo chown -R root:root "${INSTALL_DIR}"
@@ -302,7 +306,7 @@ if [[ "$DISPLAY_SERVER" == "wayland" ]]; then
     cat <<CONF | sudo tee "${SDDM_CONFD}/10-display.conf" > /dev/null
 [General]
 DisplayServer=wayland
-GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
+GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell,QML_XHR_ALLOW_FILE_READ=1
 MinimumVT=1
 
 [Wayland]
@@ -312,6 +316,7 @@ else
     cat <<CONF | sudo tee "${SDDM_CONFD}/10-display.conf" > /dev/null
 [General]
 DisplayServer=x11-user
+GreeterEnvironment=QML_XHR_ALLOW_FILE_READ=1
 MinimumVT=1
 CONF
 fi
@@ -335,9 +340,9 @@ if [[ -f "${SDDM_CONF}" ]]; then
     # update greeter env
     if grep -q "^GreeterEnvironment=" "${SDDM_CONF}"; then
         if [[ "$DISPLAY_SERVER" == "wayland" ]]; then
-            sudo sed -i "s/^GreeterEnvironment=.*/GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell/" "${SDDM_CONF}"
+            sudo sed -i "s/^GreeterEnvironment=.*/GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell,QML_XHR_ALLOW_FILE_READ=1/" "${SDDM_CONF}"
         else
-            sudo sed -i "s/^GreeterEnvironment=.*/GreeterEnvironment=/" "${SDDM_CONF}"
+            sudo sed -i "s/^GreeterEnvironment=.*/GreeterEnvironment=QML_XHR_ALLOW_FILE_READ=1/" "${SDDM_CONF}"
         fi
     fi
 fi

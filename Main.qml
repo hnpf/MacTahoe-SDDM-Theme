@@ -45,6 +45,9 @@ Item {
     property var currentTime: new Date()
     property bool sceneReady: false
     property bool use24h: true
+    property bool syncShell27Wallpaper: true
+    property string shell27WallpaperPath: ""
+    property string shell27WallpaperFailedPath: ""
     property string lockClockStyle: "glass"
     property string lockClockFont: "rounded"
     property int lockClockWeight: 680
@@ -122,6 +125,12 @@ Item {
         var date = pick("lockClockDate");
         if (date !== "short" && date !== "long") date = preset.date;
         var clock24 = pick("use24h");
+        var syncWallpaper = pick("syncShell27Wallpaper");
+        syncWallpaper = syncWallpaper === undefined ? true
+            : (syncWallpaper === true || String(syncWallpaper).toLowerCase() === "true");
+        var wallpaperPath = settings.wallpaperPath;
+        wallpaperPath = typeof wallpaperPath === "string" ? wallpaperPath.trim() : "";
+        if (wallpaperPath !== root.shell27WallpaperPath) root.shell27WallpaperFailedPath = "";
 
         root.lockClockStyle = style;
         root.lockClockFont = font;
@@ -131,9 +140,12 @@ Item {
         root.lockClockTint = tint;
         root.lockClockDate = date;
         root.use24h = clock24 === undefined ? true : (clock24 === true || String(clock24).toLowerCase() === "true");
+        root.syncShell27Wallpaper = syncWallpaper;
+        root.shell27WallpaperPath = wallpaperPath;
     }
 
     onCurrentUsernameChanged: reloadClockSettings()
+    Component.onCompleted: reloadClockSettings()
 
     Timer {
         interval: 5000
@@ -169,11 +181,15 @@ Item {
             id: wall
             anchors.fill: parent
             source: {
-                var raw = (typeof config !== "undefined" && config.background) ? String(config.background) : "background.jpg";
-                var bg = raw.split("#")[0].split(";")[0].trim();
+                var syncPath = root.syncShell27Wallpaper
+                    && root.shell27WallpaperPath !== ""
+                    && root.shell27WallpaperPath !== root.shell27WallpaperFailedPath;
+                var raw = syncPath ? root.shell27WallpaperPath
+                    : ((typeof config !== "undefined" && config.background) ? String(config.background) : "background.jpg");
+                var bg = syncPath ? raw.trim() : raw.split("#")[0].split(";")[0].trim();
                 if (!bg) bg = "background.jpg";
-                // if absolute path: load with file://
-                if (bg.indexOf("/") === 0) return "file://" + bg;
+                if (bg.indexOf("/") === 0)
+                    return "file://" + encodeURI(bg).replace(/#/g, "%23").replace(/\?/g, "%3F");
                 return Qt.resolvedUrl(bg);
             }
             fillMode: Image.PreserveAspectCrop
@@ -181,6 +197,11 @@ Item {
             asynchronous: true
             onStatusChanged: {
                 if (status === Image.Error) {
+                    if (root.syncShell27Wallpaper && root.shell27WallpaperPath !== ""
+                            && root.shell27WallpaperPath !== root.shell27WallpaperFailedPath) {
+                        root.shell27WallpaperFailedPath = root.shell27WallpaperPath;
+                        return;
+                    }
                     console.log("[MacTahoe] Failed to load wallpaper from:", source);
                 }
             }

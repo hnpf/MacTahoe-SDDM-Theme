@@ -80,17 +80,19 @@ preview directly inside your desktop session w/o logging out
 
 edit `/usr/share/sddm/themes/sddm-mac-tahoe/theme.conf`.
 
-The theme reads `~/.config/macbar/settings.json` for the selected user when that file is readable by SDDM. It refreshes the clock settings while the greeter is open, and does not require Shell27 to be installed. If the file is in another location, set `macbarSettingsFile` to an absolute path; `%USER%` expands to the selected login name and `%HOME%` to `/home/<user>`.
+The theme reads `~/.config/macbar/settings.json` for the selected user when that file is readable by SDDM. It refreshes clock settings and, by default, syncs the selected Shell27 wallpaper while the greeter is open. If Shell27's settings or selected wallpaper cannot be read, it falls back to `background`. Set `syncShell27Wallpaper=false` to disable wallpaper sync. If the settings file is in another location, set `macbarSettingsFile` to an absolute path; `%USER%` expands to the selected login name and `%HOME%` to `/home/<user>`.
 
 SDDM must be able to traverse the user's home directory and read the JSON file. The installer enables Qt's `QML_XHR_ALLOW_FILE_READ=1` greeter environment flag for this; manual installations must add the same variable to SDDM's `GreeterEnvironment`. For a private home directory, point `macbarSettingsFile` at a readable shared copy. When no shared settings file is available, the theme uses its defaults. Standalone values can also be added to `theme.conf` using the same keys: `lockClockStyle`, `lockClockFont`, `lockClockWeight`, `lockClockMaterial`, `lockClockIntensity`, `lockClockTint`, `lockClockDate`, and `use24h`.
 
 ```bash
 [General]
 background=background.jpg # change to whatever, or replace.
+# Set false to use only the explicit background path below.
+syncShell27Wallpaper=true
 macbarSettingsFile=/home/%USER%/.config/macbar/settings.json
 ```
 
-change background.jpg to whatever you want, or replace the preexisting/default wallpaper.
+Change `background` to the fallback wallpaper you want, or replace the preexisting/default wallpaper. Shell27's `wallpaperPath` takes precedence while sync is enabled and its image is available.
 
 ---
 

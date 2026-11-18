@@ -107,7 +107,7 @@ if [[ "${1:-}" == "--test" || "${1:-}" == "-t" ]]; then
         err "sddm-greeter-qt6 not found. Is SDDM installed?"
         exit 1
     fi
-    sddm-greeter-qt6 --test-mode --theme "${SCRIPT_DIR}"
+    QML_XHR_ALLOW_FILE_READ=1 sddm-greeter-qt6 --test-mode --theme "${SCRIPT_DIR}"
     exit 0
 fi
 

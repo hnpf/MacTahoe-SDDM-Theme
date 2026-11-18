@@ -145,7 +145,6 @@ Item {
     }
 
     onCurrentUsernameChanged: reloadClockSettings()
-    Component.onCompleted: reloadClockSettings()
 
     Timer {
         interval: 5000

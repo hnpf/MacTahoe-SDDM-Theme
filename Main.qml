@@ -235,6 +235,7 @@ Item {
         sourceItem: scene
         visible: false
         live: root.sceneReady
+        mipmap: true
         width: root.width
         height: root.height
         textureSize: Qt.size(Math.max(1, Math.round(root.width / 2)), Math.max(1, Math.round(root.height / 2)))
@@ -456,17 +457,35 @@ Item {
                 smooth: true
             }
 
+            Text {
+                anchors.fill: parent
+                text: clockMaskText.text
+                color: "#10141B"
+                opacity: 0.45
+                font: clockMaskText.font
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                layer.enabled: true
+                layer.effect: MultiEffect {
+                    shadowEnabled: true
+                    shadowBlur: 0.6
+                    shadowOpacity: 0.5
+                    shadowVerticalOffset: 3 * root.u
+                }
+            }
+
             ShaderEffect {
                 id: clockGlass
                 anchors.fill: parent
                 fragmentShader: Qt.resolvedUrl("clockglass.frag.qsb")
-                property variant src: glassTex
+                property variant src: sceneTex
                 property variant mask: clockMask
                 property variant hmap: clockHeight
                 property vector2d itemSize: Qt.vector2d(width, height)
-                property vector2d srcSize: Qt.vector2d(root.width, root.height)
-                readonly property point framePos: clockGlass.mapToItem(root, 0, 0)
-                property vector2d srcOffset: Qt.vector2d(framePos.x, framePos.y)
+                property vector2d srcSize: Qt.vector2d(scene.width, scene.height)
+                property vector2d srcOffset: Qt.vector2d(
+                    clockCol.x + clockTime.x + clockGlass.x,
+                    clockCol.y + clockTime.y + clockGlass.y)
                 property real mode: root.lockClockMaterial === "glass" ? 1 : 0
                 property real intensity: root.lockClockMaterial === "glass" ? root.lockClockIntensity : 0.55 + 0.4 * root.lockClockIntensity
                 property real refract: (6 + 4 * (1 - root.lockClockIntensity)) * root.u
